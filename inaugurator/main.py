@@ -29,6 +29,21 @@ logging.basicConfig(level=logging.DEBUG, stream=sys.stdout,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 
+def getSSDDeviceNames():
+    blockDevices = os.listdir('/sys/block')
+    storageDevices = [dev for dev in blockDevices if dev.startswith('sd')]
+    ssdDevices = []
+    for device in storageDevices:
+        isRotationalPathComponents = ['sys', 'block', device, 'queue', 'rotational']
+        isRotationalPath = os.path.join(*isRotationalPathComponents)
+        with open(isRotationalPath, 'rb') as f:
+            isRotational = f.read()
+        isRotational = bool(int(isRotational.strip()))
+        if not isRotational:
+            ssdDevices.append(device)
+    return ssdDevices
+
+
 def main(args):
     before = time.time()
     udev.loadAllDrivers()
@@ -103,6 +118,16 @@ def main(args):
         if args.inauguratorDownload:
             downloadInstance = download.Download(args.inauguratorDownload)
             downloadInstance.download(destination)
+    devices = getSSDDeviceNames()
+    print 'Disabling NCQ for the following SSD devices: {}...'.format(devices)
+    for device in devices:
+        try:
+            queueDepthPath = '/sys/block/{}/device/queue_depth'.format(device)
+            print sh.run('busybox echo 1 > {}'.format(queueDepthPath))
+            print sh.run('busybox echo "{} is now:" '.format(queueDepthPath))
+            print sh.run('busybox cat {}'.format(queueDepthPath))
+        except Exception, ex:
+            print ex.message
     print "sync..."
     sh.run(["busybox", "sync"])
     print "sync done"
