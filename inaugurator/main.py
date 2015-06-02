@@ -13,7 +13,6 @@ logging.basicConfig(level=logging.DEBUG, stream=sys.stdout,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logging.getLogger('pika').setLevel(logging.INFO)
 
-
 parser = argparse.ArgumentParser(add_help=False)
 parser.add_argument("--inauguratorClearDisk", action="store_true")
 parser.add_argument("--inauguratorSource", required=True)
@@ -32,6 +31,7 @@ parser.add_argument("--inauguratorDownload", nargs='+', default=[])
 parser.add_argument("--inauguratorIgnoreDirs", nargs='+', default=[])
 parser.add_argument("--inauguratorTargetDeviceCandidate", nargs='+', default=['/dev/vda', '/dev/sda'])
 parser.add_argument("--inauguratorVerify", action="store_true")
+parser.add_argument("--inauguratorSkipDisablingNCQ", action="store_true")
 
 try:
     cmdLine = open("/proc/cmdline").read().strip()
