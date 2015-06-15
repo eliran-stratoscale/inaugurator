@@ -1,20 +1,7 @@
-from inaugurator import partitiontable
-from inaugurator import targetdevice
-from inaugurator import mount
-from inaugurator import sh
-from inaugurator import network
-from inaugurator import loadkernel
-from inaugurator import fstab
-from inaugurator import passwd
-from inaugurator import osmose
-from inaugurator import osmosiscleanup
 from inaugurator import checkinwithserver
-from inaugurator import grub
-from inaugurator import diskonkey
 from inaugurator import udev
-from inaugurator import download
-from inaugurator import etclabelfile
-from inaugurator import lvmetad
+from inaugurator import network
+from inaugurator import sh
 import argparse
 import traceback
 import pdb
@@ -22,6 +9,8 @@ import os
 import time
 import logging
 import sys
+from inaugurator import lvmetad
+from inaugurator import targetdevice
 
 
 logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
@@ -29,86 +18,61 @@ logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
 
 def main(args):
     before = time.time()
+    print 'Starting udev...'
     udev.loadAllDrivers()
+    print 'Searching target device...'
     targetDevice = targetdevice.TargetDevice.device()
+    print 'Starting lvmetad...'
     lvmetad.Lvmetad()
-    partitionTable = partitiontable.PartitionTable(targetDevice)
-    if args.inauguratorClearDisk:
-        partitionTable.clear()
-    partitionTable.verify()
-    logging.info("Partitions created")
-    mountOp = mount.Mount(targetDevice)
-    checkIn = None
-    with mountOp.mountRoot() as destination:
-        etcLabelFile = etclabelfile.EtcLabelFile(destination)
-        osmosiscleanup.OsmosisCleanup(destination)
-        if args.inauguratorSource == 'network':
-            network.Network(
-                macAddress=args.inauguratorUseNICWithMAC, ipAddress=args.inauguratorIPAddress,
-                netmask=args.inauguratorNetmask, gateway=args.inauguratorGateway)
-            osmos = osmose.Osmose(
-                destination, objectStores=args.inauguratorOsmosisObjectStores,
-                withLocalObjectStore=args.inauguratorWithLocalObjectStore,
-                ignoreDirs=args.inauguratorIgnoreDirs)
-            if args.inauguratorServerHostname:
-                checkIn = checkinwithserver.CheckInWithServer(hostname=args.inauguratorServerHostname)
-                label = checkIn.label()
-            else:
-                label = args.inauguratorNetworkLabel
-            osmos.tellLabel(label)
-            osmos.wait()
-        elif args.inauguratorSource == 'DOK':
-            dok = diskonkey.DiskOnKey()
-            with dok.mount() as source:
-                osmos = osmose.Osmose(
-                    destination, objectStores=source + "/osmosisobjectstore",
-                    withLocalObjectStore=args.inauguratorWithLocalObjectStore,
-                    ignoreDirs=args.inauguratorIgnoreDirs)
-                with open("%s/inaugurate_label.txt" % source) as f:
-                    label = f.read().strip()
-                osmos.tellLabel(label)  # This must stay under the dok mount 'with' statement
-                osmos.wait()
-        elif args.inauguratorSource == 'local':
-            osmos = osmose.Osmose(
-                destination, objectStores=None,
-                withLocalObjectStore=args.inauguratorWithLocalObjectStore,
-                ignoreDirs=args.inauguratorIgnoreDirs)
-            label = args.inauguratorNetworkLabel
-            osmos.tellLabel(label)
-            osmos.wait()
-        else:
-            assert False, "Unknown source %s" % args.inauguratorSource
-        print "Osmosis complete"
-        etcLabelFile.write(label)
-        with mountOp.mountBoot() as bootDestination:
-            sh.run("rsync -rlpgDS --delete-before %s/boot/ %s/" % (destination, bootDestination))
-        with mountOp.mountBootInsideRoot():
-            print "Installing grub"
-            grub.install(targetDevice, destination)
-        print "Boot sync complete"
-        fstab.createFSTab(
-            rootPath=destination, root=mountOp.rootPartition(),
-            boot=mountOp.bootPartition(), swap=mountOp.swapPartition())
-        print "/etc/fstab created"
-        if args.inauguratorChangeRootPassword:
-            passwd.setRootPassword(destination, args.inauguratorChangeRootPassword)
-            print "Changed root password"
-        loadKernel = loadkernel.LoadKernel()
-        loadKernel.fromBootPartitionGrubConfig(
-            bootPath=os.path.join(destination, "boot"), rootPartition=mountOp.rootPartition(),
-            append=args.inauguratorPassthrough)
-        print "kernel loaded"
-        if args.inauguratorDownload:
-            downloadInstance = download.Download(args.inauguratorDownload)
-            downloadInstance.download(destination)
-    print "sync..."
-    sh.run(["busybox", "sync"])
-    print "sync done"
-    after = time.time()
-    if checkIn is not None:
-        checkIn.done()
-    print "Inaugurator took: %.2fs. KEXECing" % (after - before)
-    loadKernel.execute()
+    print 'initializing network...'
+    network.Network(macAddress=args.inauguratorUseNICWithMAC, ipAddress=args.inauguratorIPAddress,
+                    netmask=args.inauguratorNetmask, gateway=args.inauguratorGateway)
+    print 'checking in...'
+    checkIn = checkinwithserver.CheckInWithServer(hostname=args.inauguratorServerHostname)
+
+    import socket
+    import sys
+    import subprocess
+    HOST = ''   # Symbolic name, meaning all available interfaces
+    PORT = 8888  # Arbitrary non-privileged port
+    s = socket.socket()
+    # s.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
+    print 'Socket created'
+    try:
+        s.bind((HOST, PORT))
+    except socket.error as msg:
+        print 'Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1]
+        sys.exit()
+    print 'Socket bind complete'
+    s.listen(10)
+    while 1:
+        print 'Socket now listening'
+        conn, addr = s.accept()
+        time.sleep(1)
+        print 'Connected with ' + addr[0] + ':' + str(addr[1])
+        while True:
+            time.sleep(1)
+            try:
+                print 'waiting for a command...'
+                cmd = conn.recv(1000)
+            except:
+                traceback.print_exc(file=sys.stdout)
+                break
+            try:
+                print 'command: {}'.format(cmd)
+                print sh.run(cmd)
+            except:
+                traceback.print_exc(file=sys.stdout)
+        s.close()
+    print 'sleeping...'
+    time.sleep(10)
+    with open(r'sshd_config', 'wb') as f:
+        f.write('# bla')
+    import subprocess
+    print subprocess.check_output('/usr/sbin/sshd-keygen')
+    time.sleep(2)
+    print subprocess.check_output('/usr/sbin/sshd -f sshd_config')
+    time.sleep(4)
 
 
 parser = argparse.ArgumentParser(add_help=False)

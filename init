@@ -14,4 +14,6 @@ echo ifconfig -a:
 echo lsmod:
 /usr/sbin/busybox lsmod
 export PYUDEV_UDEV_LIBRARY_NAME=libudev.so.1
+/ust/sbin/busybox echo "sleeping..."
+/ust/sbin/busybox sleep 10
 exec /bin/python2.7 -m inaugurator.main
