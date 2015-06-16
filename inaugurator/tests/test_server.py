@@ -14,6 +14,9 @@ from inaugurator import talktoserver
 config.PORT = 2018
 config.AMQP_URL = "amqp://guest:guest@localhost:%d/%%2F" % config.PORT
 import mock
+import pika
+import uuid
+import logging
 
 
 class Test(unittest.TestCase):
@@ -48,6 +51,7 @@ class Test(unittest.TestCase):
     def sendCheckIn(self, id):
         talk = talktoserver.TalkToServer(config.AMQP_URL, id)
         talk.checkIn()
+        talk.close()
 
     def assertEqualsWithinTimeout(self, callback, expected, interval=0.1, timeout=3):
         before = time.time()
@@ -120,6 +124,7 @@ class Test(unittest.TestCase):
             tested.provideLabel("eliran", "fake label")
             self.assertEquals(talk.label(), "fake label")
         finally:
+            talk.close()
             tested.close()
 
     def test_ExceptionInCallbackDoesNotCrashServer(self):
@@ -134,6 +139,67 @@ class Test(unittest.TestCase):
         finally:
             tested.close()
 
+    def test_ProvideLabel(self):
+        tested = server.Server(self.checkInCallback, self.doneCallback, self.progressCallback)
+        try:
+            tested.listenOnID("yuvu")
+            self.sendCheckIn("yuvu")
+            self.assertEqualsWithinTimeout((lambda: self.checkInCallbackArguments), [("yuvu",)])
+            talk = talktoserver.TalkToServer(config.AMQP_URL, "yuvu")
+            tested.provideLabel("yuvu", "thecoolestlabel")
+            self.assertEquals(talk.label(), "thecoolestlabel")
+        finally:
+            talk.close()
+            tested.close()
+
+    def test_ProvideLabelAfterStopAndStart(self):
+        tested = server.Server(self.checkInCallback, self.doneCallback, self.progressCallback)
+        try:
+            tested.listenOnID("yuvu")
+            self.sendCheckIn("yuvu")
+            self.assertEqualsWithinTimeout((lambda: self.checkInCallbackArguments), [("yuvu",)])
+            talk = talktoserver.TalkToServer(config.AMQP_URL, "yuvu")
+            tested.provideLabel("yuvu", "thecoolestlabel")
+            self.assertEquals(talk.label(), "thecoolestlabel")
+            talk.close()
+            tested.stopListeningOnID("yuvu")
+            self.sendCheckIn("yuvu")
+            self.assertEqualsWithinTimeout((lambda: self.checkInCallbackArguments), [("yuvu",)])
+            tested.listenOnID("yuvu")
+            talk = talktoserver.TalkToServer(config.AMQP_URL, "yuvu")
+            tested.provideLabel("yuvu", "anothercoollabel")
+            self.assertEquals(talk.label(), "anothercoollabel")
+        finally:
+            tested.close()
+            talk.close()
+
+    def test_LotsOfStuffOnSameTalkToServer(self):
+        tested = server.Server(self.checkInCallback, self.doneCallback, self.progressCallback)
+        try:
+            tested.listenOnID("yuvu")
+            talk = talktoserver.TalkToServer(config.AMQP_URL, "yuvu")
+            expected = []
+            for i in xrange(10):
+                talk.checkIn()
+                expected.append(("yuvu",))
+                self.assertEqualsWithinTimeout((lambda: self.checkInCallbackArguments), expected)
+                label = str(uuid.uuid1())
+                tested.provideLabel("yuvu", label)
+                self.assertEqualsWithinTimeout(talk.label, label)
+            tested.stopListeningOnID("yuvu")
+            time.sleep(0.1)
+            self.assertRaises(pika.exceptions.ChannelClosed, talk.checkIn)
+            self.assertEqualsWithinTimeout((lambda: self.checkInCallbackArguments), expected)
+            self.assertEquals(self.doneCallbackArguments, [])
+            self.assertEquals(self.progressCallbackArguments, [])
+        finally:
+            talk.close()
+            tested.close()
+
 
 if __name__ == '__main__':
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.INFO)
+    logging.getLogger().addHandler(handler)
+    logging.getLogger().setLevel(logging.INFO)
     unittest.main()
