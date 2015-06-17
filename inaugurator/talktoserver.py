@@ -45,6 +45,7 @@ class TalkToServerSpooler(threading.Thread):
                 finishedEvent.set()
 
     def _connect(self, amqpURL):
+        logging.info("pika path: %(pika)s", dict(pika=str(pika)))
         logging.info("Inaugurator Publish Spooler connects to rabbit MQ %(url)s...", dict(url=amqpURL))
         parameters = pika.URLParameters(amqpURL)
         self._connection = pika.BlockingConnection(parameters)
@@ -70,12 +71,7 @@ class TalkToServerSpooler(threading.Thread):
         return self._receivedLabel
 
     def _stop(self):
-        if not self._channel.is_closed and not self._channel.is_closing:
-            logging.info("Closing connection")
-            self._channel.close()
-        if not self._connection.is_closed and not self._connection.is_closing:
-            logging.info("Closing channel")
-            self._connection.close()
+        pass
 
     def _executeCommand(self, function, **kwargs):
         class ReturnValue(object):
@@ -104,7 +100,7 @@ class TalkToServer(object):
         self._spooler.publishStatus(status="checkin", id=self._myID)
 
     def progress(self, progress):
-        self._spooler.publishStatus(status="progress", progress=progress, id=self_.myID)
+        self._spooler.publishStatus(status="progress", progress=progress, id=self._myID)
 
     def done(self):
         logging.info("talking to server: done")

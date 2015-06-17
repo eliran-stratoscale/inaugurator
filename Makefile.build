@@ -22,6 +22,9 @@ build/inaugurator.thin.initrd.dir: dist/inaugurator-1.0.linux-x86_64.tar.gz ../o
 	echo "Installing Inaugurator"
 	tar -xf $< --directory $@.tmp
 	tar -xf ../osmosis/dist/osmosis-1.0.linux-x86_64.tar.gz --directory $@.tmp
+	echo "Copying pika"
+	mkdir $@.tmp/usr/share/inaugurator -p
+	cp latest-pika/pika-0.10.0p0-py2.7.egg $@.tmp/usr/share/inaugurator
 	echo "Copying libraries"
 	DEST=$@.tmp sh/relative_copy_glob.sh /lib64/ld*
 	DEST=$@.tmp sh/relative_copy_glob.sh /usr/lib64/python2.7/*
@@ -35,9 +38,6 @@ build/inaugurator.thin.initrd.dir: dist/inaugurator-1.0.linux-x86_64.tar.gz ../o
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/lib64/libudev.so.1
 	DEST=$@.tmp sh/relative_copy_glob.sh /usr/lib64/libnss_dns*
 	DEST=$@.tmp sh/relative_copy_glob.sh /usr/share/hwdata/pci.ids
-	echo "Copying pika:"
-	DEST=$@.tmp sh/relative_copy_glob.sh /usr/lib/python2.7/site-packages/pika/*.py
-	DEST=$@.tmp sh/relative_copy_glob.sh /usr/lib/python2.7/site-packages/pika/adapters/*.py
 	echo "Copying executables"
 	DEST=$@.tmp sh/relative_copy_executable.sh /bin/bash
 	DEST=$@.tmp sh/relative_copy_executable.sh /bin/sh

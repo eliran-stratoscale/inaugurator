@@ -46,7 +46,8 @@ class Server(threading.Thread):
         self._channel.queue_declare(lambda *a: None, queue=self._labelQueue(id))
 
         def onQueueBind(myQueue):
-            self._channel.basic_consume(self._handleStatus, queue=myQueue, no_ack=True)
+            self._channel.basic_consume(self._handleStatus, queue=myQueue, no_ack=True,
+                                        consumer_tag=self._consumerTag(id))
 
         def onQueueDeclared(methodFrame):
             myQueue = methodFrame.method.queue
@@ -59,11 +60,14 @@ class Server(threading.Thread):
         self._channel.exchange_declare(onExchangeDecalred, exchange=self.statusExchange(id), type='fanout')
 
     def _stopListeningOnID(self, id):
-        self._channel.exchange_delete(exchange=self.statusExchange(id))
+        self._channel.basic_cancel(consumer_tag=self._consumerTag(id))
 
     @classmethod
     def statusExchange(cls, id):
         return "inaugurator_status__%s" % id
+
+    def _consumerTag(cls, id):
+        return "inaugurator_consumer_%s" % id
 
     def _labelQueue(self, id):
         return "inaugurator_label__%s" % id

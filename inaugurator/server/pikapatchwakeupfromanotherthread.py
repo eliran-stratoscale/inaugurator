@@ -4,10 +4,6 @@ import select
 import logging
 import signal
 import select
-from inaugurator.server import newpika_select_connection
-import pika
-
-pika.SelectConnection = newpika_select_connection.SelectConnection
 
 _logger = logging.getLogger('inaugurator.server')
 
@@ -40,6 +36,8 @@ class PikaPatchWakeUpFromAnotherThread:
             _logger.error(
                 "While hot-patching pika: pika version seems to be different than the one this "
                 "hot-patch was created for, cannot proceed. This patch was created for pika 0.9.14")
+            import pika
+            _logger.info(pika)
             self._suicide()
         # There's no way of refering the builtin select.poll type object besides the `type` function,
         # since select.poll is a built-in function, in addition to being a hard-coded type.

@@ -7,6 +7,8 @@ import os
 import sys
 assert 'usr' not in __file__.split(os.path.sep)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'latest-pika', 'pika-0.10.0p0-py2.7.egg'))
+import pika
 from inaugurator.server import server
 from inaugurator.server import rabbitmqwrapper
 from inaugurator.server import config
@@ -187,8 +189,7 @@ class Test(unittest.TestCase):
                 tested.provideLabel("yuvu", label)
                 self.assertEqualsWithinTimeout(talk.label, label)
             tested.stopListeningOnID("yuvu")
-            time.sleep(0.1)
-            self.assertRaises(pika.exceptions.ChannelClosed, talk.checkIn)
+            talk.checkIn()
             self.assertEqualsWithinTimeout((lambda: self.checkInCallbackArguments), expected)
             self.assertEquals(self.doneCallbackArguments, [])
             self.assertEquals(self.progressCallbackArguments, [])

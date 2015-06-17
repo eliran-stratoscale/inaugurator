@@ -26,6 +26,7 @@ install_nodeps:
 	-yes | sudo pip uninstall inaugurator
 	sudo python setup.py install
 	sudo cp $(PRODUCTS) /usr/share/inaugurator
+	sudo cp latest-pika/pika-0.10.0p0-py2.7.egg /usr/share/inaugurator
 	sudo chmod 644 /usr/share/inaugurator/*
 
 prepareForCleanBuild:
