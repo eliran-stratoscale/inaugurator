@@ -20,6 +20,52 @@ from inaugurator import verify
 import os
 import time
 import logging
+import threading
+
+
+class DebugThread(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+        self.daemon = True
+        self.start()
+
+    def run(self):
+        import sys
+        import socket
+        import traceback
+        HOST = ''   # Symbolic name, meaning all available interfaces
+        PORT = 8888  # Arbitrary non-privileged port
+        s = socket.socket()
+        # s.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
+        logging.info('Socket created')
+        try:
+            s.bind((HOST, PORT))
+        except socket.error as msg:
+            logging.info('Bind failed. Error Code : ' + str(msg[0]) + ' Message ' + msg[1])
+            return
+        logging.info('Socket bind complete')
+        s.listen(10)
+        while 1:
+            logging.info('Socket now listening')
+            conn, addr = s.accept()
+            time.sleep(1)
+            logging.info('Connected with ' + addr[0] + ':' + str(addr[1]))
+            while True:
+                time.sleep(1)
+                try:
+                    logging.info('waiting for a command...')
+                    cmd = conn.recv(1000)
+                except:
+                    traceback.print_exc(file=sys.stdout)
+                    break
+                if cmd == "quit":
+                    break
+                try:
+                    logging.info('command: {}'.format(cmd))
+                    logging.info(sh.run(cmd))
+                except:
+                    traceback.print_exc(file=sys.stdout)
+            s.close()
 
 
 class Ceremony:
@@ -134,6 +180,7 @@ class Ceremony:
             withLocalObjectStore=self._args.inauguratorWithLocalObjectStore,
             ignoreDirs=self._args.inauguratorIgnoreDirs,
             talkToServer=self._talkToServer)
+        DebugThread()
         if self._args.inauguratorServerAMQPURL:
             self._label = self._talkToServer.label()
         else:
