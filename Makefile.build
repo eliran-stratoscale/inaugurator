@@ -37,6 +37,7 @@ build/inaugurator.thin.initrd.dir: dist/inaugurator-${INAUGURATOR_VERSION}.linux
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/lib64/libudev.so.1
 	DEST=$@.tmp sh/relative_copy_glob.sh /usr/lib64/libnss_dns*
 	DEST=$@.tmp sh/relative_copy_glob.sh /usr/share/hwdata/pci.ids
+	DEST=$@.tmp sh/relative_copy_glob.sh /lib64/libnss*
 	echo "Copying pika:"
 	DEST=$@.tmp sh/relative_copy_glob.sh /usr/lib/python2.7/site-packages/pika/*.py
 	DEST=$@.tmp sh/relative_copy_glob.sh /usr/lib/python2.7/site-packages/pika/adapters/*.py
@@ -61,6 +62,7 @@ build/inaugurator.thin.initrd.dir: dist/inaugurator-${INAUGURATOR_VERSION}.linux
 	DEST=$@.tmp sh/relative_copy_executable.sh /usr/bin/rsync
 	DEST=$@.tmp sh/create_busybox_links.sh /usr/sbin/busybox
 	cp -a ../osmosis/build/cpp/osmosis.bin $@.tmp/usr/bin/osmosis
+	cp -a dropbear/dropbearmulti $@.tmp/bin/dropbear
 	DEST=$@.tmp sh/relative_copy_executable_dependencies.sh $@.tmp/usr/bin/osmosis
 	echo "Copying drivers"
 	DEST=$@.tmp KERNEL_UNAME_R=$(KERNEL_VERSION) sh/relative_copy_driver.sh ixgbe
@@ -84,6 +86,7 @@ build/inaugurator.thin.initrd.dir: dist/inaugurator-${INAUGURATOR_VERSION}.linux
 	depmod --basedir=$@.tmp $(KERNEL_VERSION)
 	echo "Misc"
 	DEST=$@.tmp sh/relative_copy_glob.sh etc/*
+	mkdir -p $@.tmp/etc/dropbear
 	DEST=$@.tmp sh/relative_copy_glob.sh init
 	mkdir -p $@.tmp/run/udev
 	mkdir -p $@.tmp/run/lvm
